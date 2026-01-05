@@ -109,9 +109,9 @@ def register_code(verbose: bool = False) -> None:
 
 
 def register_agent(verbose: bool = False) -> None:
-    """Create workflow file for agent discovery."""
-    # Use .agent/workflows/ which is the standard location
-    workflow_dir = Path.cwd() / ".agent" / "workflows"
+    """Create workflow file for Antigravity agent discovery."""
+    # Use .antigravity/workflows/ for Antigravity
+    workflow_dir = Path.cwd() / ".antigravity" / "workflows"
     workflow_dir.mkdir(parents=True, exist_ok=True)
     
     path = workflow_dir / "bimbogpt.md"
@@ -185,7 +185,7 @@ Register BiMBoGPT with AI platforms:
 
   --register none     Print instructions to stdout (default)
   --register code     Register with Claude Code (CLAUDE.md)
-  --register agent    Register with agent workflows (.agent/workflows/)
+  --register agent    Register with Antigravity (.antigravity/workflows/)
   --register mcp      Start MCP server mode
 """
     print(help_text)
