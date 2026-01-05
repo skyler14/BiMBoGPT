@@ -1,100 +1,33 @@
 """
 Drop-in replacement for OpenAI client with babble injection.
 
-Inherits from OpenAI and adds pre/post processing for babble.
-
-Usage:
-    # Just change your import:
-    from bimbogpt import BimboClient as OpenAI
-    
-    client = OpenAI()
-    # Everything works the same, babble is automatic
-    
-    # For agentic delegation:
-    response = client.delegate(messages)  # Uses FIFO to calling agent
+DESIGN: Minimal interception, maximum forward compatibility.
+- Inherits from OpenAI
+- Only intercepts chat.completions.create()
+- All other methods/attributes pass through unchanged
+- Uses __getattr__ for full compatibility with future SDK changes
 """
 
 from typing import Optional, Any
 from openai import OpenAI
-from openai._streaming import Stream
-from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from .injector import BabbleInjector
-from .triggers import TriggerMatch
-from . import fifo
-
-
-class _BimboChatCompletions:
-    """Chat completions with babble pre/post processing."""
-    
-    def __init__(self, original_completions: Any, injector: BabbleInjector, verbose: bool):
-        self._completions = original_completions
-        self._injector = injector
-        self._verbose = verbose
-        self._last_match: Optional[TriggerMatch] = None
-    
-    def _strip_babble_from_response(self, content: str) -> str:
-        """Remove the copied babble from the model's response."""
-        from .stripper import strip_babble
-        return strip_babble(content, self._injector.babble_word)
-
-    
-    def create(
-        self,
-        messages: list[dict],
-        stream: bool = False,
-        **kwargs
-    ) -> ChatCompletion | Stream[ChatCompletionChunk]:
-        """Create chat completion with automatic babble injection."""
-        # Pre-process: inject babble
-        modified_messages, match = self._injector.inject(messages)
-        self._last_match = match
-        
-        if match and self._verbose:
-            print(f"[BiMBoGPT] Trigger: '{match.original_phrase}' → injecting babble")
-        
-        # Call original
-        response = self._completions.create(messages=modified_messages, stream=stream, **kwargs)
-        
-        # Post-process: strip babble from non-streaming response
-        if not stream and match and response.choices:
-            content = response.choices[0].message.content
-            if content:
-                cleaned = self._strip_babble_from_response(content)
-                response.choices[0].message.content = cleaned
-        
-        return response
-
-
-class _BimboChat:
-    """Chat namespace with babble-aware completions."""
-    
-    def __init__(self, original_chat: Any, injector: BabbleInjector, verbose: bool):
-        self.completions = _BimboChatCompletions(
-            original_chat.completions, 
-            injector, 
-            verbose
-        )
+from .stripper import strip_babble
 
 
 class BimboClient(OpenAI):
     """
     OpenAI client with automatic babble injection.
     
-    Inherits from OpenAI - use it exactly the same way.
-    Just change your import and everything works.
+    Inherits from OpenAI - just change your import.
+    Only intercepts chat.completions.create(), everything else
+    passes through unchanged for maximum forward compatibility.
     
     Example:
         from bimbogpt import BimboClient as OpenAI
         
         client = OpenAI()
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": "Answer in 1 word: ..."}]
-        )
-        
-        # For agentic mode (delegates to calling agent via FIFO):
-        response = client.delegate(messages, model="gpt-4")
+        response = client.chat.completions.create(...)
     """
     
     def __init__(
@@ -107,9 +40,11 @@ class BimboClient(OpenAI):
         verbose: bool = False,
         **kwargs,
     ):
+        # Pass everything to OpenAI
         super().__init__(*args, **kwargs)
         
         self._babble_enabled = babble_enabled
+        self._babble_word = babble_word
         self._verbose = verbose
         self._injector = BabbleInjector(
             babble_word=babble_word,
@@ -117,13 +52,9 @@ class BimboClient(OpenAI):
             auto_scale=auto_scale,
         )
         
-        # Wrap chat.completions with our pre/post processing
-        if babble_enabled:
-            self.chat = _BimboChat(super().chat, self._injector, verbose)
-    
-    # -------------------------------------------------------------------------
-    # Agentic delegation methods
-    # -------------------------------------------------------------------------
+        # Wrap only the chat completions endpoint
+        self._original_chat = super().chat
+        self.chat = _ChatProxy(self._original_chat, self._injector, babble_word, verbose, babble_enabled)
     
     def delegate(
         self,
@@ -131,39 +62,86 @@ class BimboClient(OpenAI):
         model: str = "gpt-4",
         timeout: Optional[float] = None,
     ) -> str:
-        """
-        Delegate query to calling agent via FIFO.
+        """Delegate to calling agent via FIFO with babble pre/post processing."""
+        from . import fifo
         
-        Use this when running as a subprocess of an AI agent.
-        The agent will make the LLM call using its own API key.
-        
-        Pre-processing: Injects babble if triggers detected.
-        Post-processing: Strips babble from response.
-        
-        Args:
-            messages: OpenAI-style messages
-            model: Model hint for agent
-            timeout: Optional timeout
-            
-        Returns:
-            Clean response string (babble stripped)
-        """
-        # Pre-process: inject babble
         modified_messages, match = self._injector.inject(messages)
-        
         if match and self._verbose:
-            print(f"[BiMBoGPT] Trigger: '{match.original_phrase}' → injecting babble")
+            print(f"[BiMBoGPT] Trigger: '{match.original_phrase}'")
         
-        # Delegate to agent
         response = fifo.delegate_to_agent(modified_messages, model=model, timeout=timeout)
         
-        # Post-process: strip babble
         if match:
-            response = self._strip_babble(response)
+            response = strip_babble(response, self._babble_word)
+        
+        return response
+
+
+class _ChatProxy:
+    """
+    Minimal proxy for chat namespace.
+    
+    Only intercepts completions.create(), passes everything else through.
+    """
+    
+    def __init__(self, original_chat: Any, injector: BabbleInjector, babble_word: str, verbose: bool, enabled: bool):
+        self._original = original_chat
+        self._injector = injector
+        self._babble_word = babble_word
+        self._verbose = verbose
+        self._enabled = enabled
+        self.completions = _CompletionsProxy(
+            original_chat.completions, 
+            injector, 
+            babble_word,
+            verbose, 
+            enabled
+        )
+    
+    def __getattr__(self, name: str) -> Any:
+        """Pass through any other attributes to original chat."""
+        return getattr(self._original, name)
+
+
+class _CompletionsProxy:
+    """
+    Minimal proxy for chat.completions.
+    
+    Only intercepts create(), passes everything else through.
+    """
+    
+    def __init__(self, original_completions: Any, injector: BabbleInjector, babble_word: str, verbose: bool, enabled: bool):
+        self._original = original_completions
+        self._injector = injector
+        self._babble_word = babble_word
+        self._verbose = verbose
+        self._enabled = enabled
+    
+    def create(self, *, messages: list[dict], stream: bool = False, **kwargs) -> Any:
+        """
+        Intercept create() for babble injection.
+        
+        Pre: inject babble if triggered
+        Post: strip babble from response
+        """
+        match = None
+        
+        if self._enabled:
+            messages, match = self._injector.inject(list(messages))
+            if match and self._verbose:
+                print(f"[BiMBoGPT] Trigger: '{match.original_phrase}'")
+        
+        # Call original - pass through ALL kwargs unchanged
+        response = self._original.create(messages=messages, stream=stream, **kwargs)
+        
+        # Strip babble from non-streaming response
+        if not stream and match and response.choices:
+            content = response.choices[0].message.content
+            if content:
+                response.choices[0].message.content = strip_babble(content, self._babble_word)
         
         return response
     
-    def _strip_babble(self, content: str) -> str:
-        """Strip babble from a response string (fuzzy matching)."""
-        from .stripper import strip_babble
-        return strip_babble(content, self._injector.babble_word)
+    def __getattr__(self, name: str) -> Any:
+        """Pass through any other attributes to original completions."""
+        return getattr(self._original, name)
