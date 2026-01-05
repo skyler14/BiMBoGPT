@@ -68,8 +68,8 @@ class TriggerDetector:
         re.compile(rf'\b{NUM_PATTERN}-{MODE_PATTERN}\b', re.IGNORECASE),
     ]
     
-    # Explicit babble flag
-    BABBLE_FLAG = re.compile(r'\[babble\]|--babble', re.IGNORECASE)
+    # Explicit babble flag - includes slash commands for agent integration
+    BABBLE_FLAG = re.compile(r'\[babble\]|--babble|/bimbo|/babble', re.IGNORECASE)
     
     # Quick trigger patterns (no count extraction needed)
     QUICK_TRIGGERS = [
