@@ -69,20 +69,16 @@ bimbogpt process "<content>" --mode word|sentence|paragraph
 
 WORKFLOW_TEMPLATE = """\
 ---
-description: Summarize in 1 word. Trigger on "summarize", "tldr", "in one word", "in 1 sentence".
+description: Inject babble priming for better LLM reasoning. Use /bimbo to enhance concise answers.
 ---
 # BiMBoGPT
 
-## Quick Start
+When user requests concise output (one word, tldr, summarize), inject babble priming.
+
+## FIFO Delegation
 
 ```bash
-bimbogpt process "<content>" --mode word
-```
-
-## With FIFO delegation (uses your API key)
-
-```bash
-bimbogpt process "<content>" --mode word -f
+bimbogpt process "<content>" -f
 ```
 """
 
@@ -109,16 +105,23 @@ def register_code(verbose: bool = False) -> None:
 
 
 def register_agent(verbose: bool = False) -> None:
-    """Create workflow file for Antigravity agent discovery."""
-    # Use .antigravity/workflows/ for Antigravity
+    """Create workflow files for Antigravity agent discovery."""
     workflow_dir = Path.cwd() / ".antigravity" / "workflows"
     workflow_dir.mkdir(parents=True, exist_ok=True)
     
-    path = workflow_dir / "bimbogpt.md"
-    path.write_text(WORKFLOW_TEMPLATE)
-    
+    # Create main workflow file
+    main_file = workflow_dir / "bimbo.md"
+    main_file.write_text(WORKFLOW_TEMPLATE)
     if verbose:
-        print(f"Created: {path}", file=sys.stderr)
+        print(f"Created: {main_file}", file=sys.stderr)
+    
+    # Create symlink alias
+    alias_file = workflow_dir / "babble.md"
+    if alias_file.exists() or alias_file.is_symlink():
+        alias_file.unlink()
+    alias_file.symlink_to("bimbo.md")
+    if verbose:
+        print(f"Symlinked: {alias_file} -> bimbo.md", file=sys.stderr)
 
 
 def register_mcp(verbose: bool = False) -> None:
