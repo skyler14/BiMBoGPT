@@ -1,10 +1,10 @@
 # BiMBoGPT
 
-**Babble In Means Better Out** — Drop-in OpenAI wrapper that injects babble priming for better LLM reasoning.
+**Babble In Means Better Out** — Drop-in OpenAI replacement with babble priming.
 
 ## The Insight
 
-When you ask an LLM to copy filler text before answering, it's forced to "show its work" — producing longer reasoning chains that lead to better answers. More babble = more verbose reasoning = better outputs.
+Asking LLMs to copy filler text before answering forces them to "show their work" — producing better reasoning chains. More babble = better outputs.
 
 ## Installation
 
@@ -14,19 +14,18 @@ pip install bimbogpt
 
 ## Usage
 
-Just swap your OpenAI import:
+`BimboClient` inherits from `OpenAI` — just swap your import:
 
 ```python
-# Before
-from openai import OpenAI
-client = OpenAI()
-
-# After  
 from bimbogpt import BimboClient
-client = BimboClient()
-```
 
-That's it. When your prompts contain triggers like "in 1 word" or "summarize", babble is automatically injected.
+client = BimboClient()  # Inherits from OpenAI, same API
+response = client.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": "Answer in 1 word: ..."}]
+)
+# Babble injected automatically, stripped from response
+```
 
 ```python
 response = client.chat.completions.create(

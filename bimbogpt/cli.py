@@ -70,5 +70,14 @@ def process(text: Optional[str], mode: str, model: str, fifo: bool) -> None:
         click.echo(response.choices[0].message.content)
 
 
+@main.command()
+def init() -> None:
+    """Initialize config file at ~/.bimbogpt/config.toml."""
+    from .config import Config
+    path = Config.init_config()
+    click.echo(f"Created config file: {path}")
+    click.echo("Edit this file to tune babble settings.")
+
+
 if __name__ == "__main__":
     main()
