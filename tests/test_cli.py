@@ -49,7 +49,7 @@ class TestRegister:
             result = runner.invoke(main, ["--register", "agent", "-v"])
             assert result.exit_code == 0
             
-            with open(".antigravity/workflows/bimbogpt.md") as f:
+            with open(".agent/workflows/bimbogpt.md") as f:
                 content = f.read()
             assert "description:" in content
             assert "BiMBoGPT" in content
