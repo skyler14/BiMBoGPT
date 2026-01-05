@@ -1,26 +1,24 @@
 """
 BiMBoGPT - Babble In Means Better Out
 
-Drop-in replacement for OpenAI client that injects babble priming
-to help models produce better reasoning chains.
+Just change your import:
+    from openai import OpenAI  →  from bimbogpt import OpenAI
 
-Usage:
-    from bimbogpt import BimboClient
-    
-    client = BimboClient()  # Uses OPENAI_API_KEY from env
-    response = client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": "Summarize this in 1 word: ..."}]
-    )
+Everything else stays the same.
 """
 
 from .client import BimboClient
+
+# The main export - just change "from openai" to "from bimbogpt"
+OpenAI = BimboClient
+
 from .injector import BabbleInjector
 from .triggers import TriggerDetector, TriggerMatch
 from .fifo import delegate_to_agent
 
 __all__ = [
-    "BimboClient",
+    "OpenAI",           # Primary export - drop-in replacement
+    "BimboClient",      # Alias for explicit usage
     "BabbleInjector", 
     "TriggerDetector",
     "TriggerMatch",
