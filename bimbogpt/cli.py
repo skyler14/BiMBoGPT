@@ -79,5 +79,26 @@ def init() -> None:
     click.echo("Edit this file to tune babble settings.")
 
 
+@main.command()
+@click.argument("text", required=False)
+def strip(text: Optional[str]) -> None:
+    """Strip babble from text.
+    
+    Pipe LLM responses through this to remove babble prefix.
+    
+    Example:
+        echo "blah blah blah... The answer is Paris" | bimbogpt strip
+    """
+    from .stripper import strip_babble
+    
+    if text is None:
+        if sys.stdin.isatty():
+            click.echo("Error: Provide text or pipe input", err=True)
+            sys.exit(1)
+        text = sys.stdin.read()
+    
+    click.echo(strip_babble(text))
+
+
 if __name__ == "__main__":
     main()

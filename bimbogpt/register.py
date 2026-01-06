@@ -73,13 +73,13 @@ description: Inject babble priming for better LLM reasoning. Use /bimbo to enhan
 ---
 # BiMBoGPT
 
-When user requests concise output (one word, tldr, summarize), inject babble priming.
-
-## FIFO Delegation
+When user requests concise output (one word, tldr, summarize), respond with babble prefix then strip:
 
 ```bash
-bimbogpt process "<content>" -f
+echo "blah blah blah... <answer>" | bimbogpt strip
 ```
+
+Triggers: `/bimbo`, `/babble`, `in X word`, `tldr`, `summarize`
 """
 
 
@@ -105,23 +105,30 @@ def register_code(verbose: bool = False) -> None:
 
 
 def register_agent(verbose: bool = False) -> None:
-    """Create workflow files for Antigravity agent discovery."""
-    workflow_dir = Path.cwd() / ".antigravity" / "workflows"
-    workflow_dir.mkdir(parents=True, exist_ok=True)
+    """Create workflow files for agent discovery in both .agent/ and .antigravity/."""
     
-    # Create main workflow file
-    main_file = workflow_dir / "bimbo.md"
-    main_file.write_text(WORKFLOW_TEMPLATE)
-    if verbose:
-        print(f"Created: {main_file}", file=sys.stderr)
+    # Create in both directories for compatibility
+    dirs = [
+        Path.cwd() / ".agent" / "workflows",
+        Path.cwd() / ".antigravity" / "workflows",
+    ]
     
-    # Create symlink alias
-    alias_file = workflow_dir / "babble.md"
-    if alias_file.exists() or alias_file.is_symlink():
-        alias_file.unlink()
-    alias_file.symlink_to("bimbo.md")
-    if verbose:
-        print(f"Symlinked: {alias_file} -> bimbo.md", file=sys.stderr)
+    for workflow_dir in dirs:
+        workflow_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create main workflow file
+        main_file = workflow_dir / "bimbo.md"
+        main_file.write_text(WORKFLOW_TEMPLATE)
+        if verbose:
+            print(f"Created: {main_file}", file=sys.stderr)
+        
+        # Create symlink alias
+        alias_file = workflow_dir / "babble.md"
+        if alias_file.exists() or alias_file.is_symlink():
+            alias_file.unlink()
+        alias_file.symlink_to("bimbo.md")
+        if verbose:
+            print(f"Symlinked: {alias_file} -> bimbo.md", file=sys.stderr)
 
 
 def register_mcp(verbose: bool = False) -> None:
