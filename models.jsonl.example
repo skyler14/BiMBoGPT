@@ -1,0 +1,5 @@
+# Example models config - copy to models.jsonl and add your keys
+{"name": "groq-llama3", "provider": "groq", "model": "llama-3.3-70b-versatile", "api_key": "YOUR_GROQ_KEY", "base_url": "https://api.groq.com/openai/v1"}
+{"name": "openai-gpt4", "provider": "openai", "model": "gpt-4", "api_key": "YOUR_OPENAI_KEY"}
+{"name": "anthropic-claude", "provider": "anthropic", "model": "claude-3-sonnet-20240229", "api_key": "YOUR_ANTHROPIC_KEY"}
+{"name": "local-ollama", "provider": "ollama", "model": "llama3", "base_url": "http://localhost:11434/v1"}

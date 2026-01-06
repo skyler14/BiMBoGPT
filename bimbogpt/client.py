@@ -52,9 +52,10 @@ class BimboClient(OpenAI):
             auto_scale=auto_scale,
         )
         
-        # Wrap only the chat completions endpoint
-        self._original_chat = super().chat
-        self.chat = _ChatProxy(self._original_chat, self._injector, babble_word, verbose, babble_enabled)
+        # Get original chat before we override it
+        original_chat = object.__getattribute__(self, 'chat')
+        self._original_chat = original_chat
+        self.chat = _ChatProxy(original_chat, self._injector, babble_word, verbose, babble_enabled)
     
     def delegate(
         self,

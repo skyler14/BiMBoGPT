@@ -18,5 +18,8 @@ htmlcov/
 .vscode/
 *.swp
 
+# API keys
+models.jsonl
+
 # OS
 .DS_Store
