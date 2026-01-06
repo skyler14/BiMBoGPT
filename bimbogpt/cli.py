@@ -100,5 +100,35 @@ def strip(text: Optional[str]) -> None:
     click.echo(strip_babble(text))
 
 
+@main.command()
+@click.argument("model_name")
+@click.argument("prompt")
+def query(model_name: str, prompt: str) -> None:
+    """Query a configured model with babble priming.
+    
+    Routes to models defined in models.jsonl.
+    
+    Example:
+        bimbogpt query groq-llama3 "In 1 word: What is 2+2?"
+    """
+    from .models import query_model, list_models
+    
+    available = list_models()
+    if not available:
+        click.echo("Error: No models configured. Create models.jsonl", err=True)
+        sys.exit(1)
+    
+    if model_name not in available:
+        click.echo(f"Error: Model '{model_name}' not found. Available: {available}", err=True)
+        sys.exit(1)
+    
+    try:
+        response = query_model(model_name, [{"role": "user", "content": prompt}])
+        click.echo(response)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()

@@ -3,8 +3,18 @@ description: Inject babble priming for better LLM reasoning. Use /bimbo to enhan
 ---
 # BiMBoGPT
 
-When user requests concise output (one word, tldr, summarize), respond with babble prefix then strip:
+## Model Routing
 
+If message contains `@<model-name>`, route to that model:
+```bash
+bimbogpt query groq-llama3 "In 1 word: <question>"
+```
+
+Available models: check `models.jsonl`
+
+## Default (no model specified)
+
+Respond with babble prefix, then strip:
 ```bash
 echo "blah blah blah... <answer>" | bimbogpt strip
 ```
