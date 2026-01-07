@@ -18,11 +18,11 @@ class BabbleInjector:
     """
     
     # Default babble configurations by mode
-    # Reduced for faster API responses; increase for more thorough priming
+    # Higher values = more thorough priming for better reasoning
     DEFAULT_REPETITIONS = {
-        "word": 20,       # Terser outputs get more babble
-        "sentence": 15,
-        "paragraph": 10,
+        "word": 100,      # Terser outputs get more babble
+        "sentence": 75,
+        "paragraph": 50,
     }
     
     def __init__(
