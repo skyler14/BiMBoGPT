@@ -54,7 +54,7 @@ response = client.chat.completions.create(
 ## Install
 
 ```bash
-pip install bimbogpt
+pip install git+https://github.com/skyler14/BiMBoGPT.git
 ```
 
 ## Configuration
