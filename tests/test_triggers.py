@@ -54,11 +54,6 @@ class TestQuickTriggers:
         match = detector.detect("gimme the gist of this document")
         assert match is not None
         assert match.mode == "sentence"
-    
-    def test_detects_summarize(self, detector):
-        match = detector.detect("please summarize this article")
-        assert match is not None
-        assert match.mode == "sentence"
 
 
 class TestNoMatch:

@@ -75,8 +75,6 @@ class TriggerDetector:
     QUICK_TRIGGERS = [
         (re.compile(r'\b(tldr|tl;dr)\b', re.IGNORECASE), "word", 1),
         (re.compile(r'\bgimme the gist\b', re.IGNORECASE), "sentence", 1),
-        (re.compile(r'\bsummarize\b', re.IGNORECASE), "sentence", 2),
-        (re.compile(r'\bbriefly\b', re.IGNORECASE), "sentence", 2),
         (re.compile(r'\bconcisely\b', re.IGNORECASE), "sentence", 2),
         (re.compile(r'\bshort answer\b', re.IGNORECASE), "sentence", 1),
     ]

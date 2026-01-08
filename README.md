@@ -65,4 +65,4 @@ bimbogpt init  # Creates ~/.bimbogpt/config.toml
 
 ## Triggers
 
-`in 1 word`, `in 2 sentences`, `tldr`, `summarize`, `briefly`
+`in 1 word`, `in 2 sentences`, `tldr`, `concisely`, `short answer`
