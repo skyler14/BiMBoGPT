@@ -103,7 +103,8 @@ def strip(text: Optional[str]) -> None:
 @main.command()
 @click.argument("model_name")
 @click.argument("prompt")
-def query(model_name: str, prompt: str) -> None:
+@click.option("--verbose", "-v", is_flag=True, help="Show full error traceback")
+def query(model_name: str, prompt: str, verbose: bool) -> None:
     """Query a configured model with babble priming.
     
     Routes to models defined in models.jsonl.
@@ -111,22 +112,36 @@ def query(model_name: str, prompt: str) -> None:
     Example:
         bimbogpt query groq-llama3 "In 1 word: What is 2+2?"
     """
+    import traceback
     from .models import query_model, list_models
     
     available = list_models()
     if not available:
-        click.echo("Error: No models configured. Create models.jsonl", err=True)
+        click.echo("Error: No models configured.", err=True)
+        click.echo("Create models.jsonl in current directory or ~/.bimbogpt/", err=True)
+        click.echo("See models.jsonl.example for format.", err=True)
         sys.exit(1)
     
     if model_name not in available:
-        click.echo(f"Error: Model '{model_name}' not found. Available: {available}", err=True)
+        click.echo(f"Error: Model '{model_name}' not found.", err=True)
+        click.echo(f"Available models: {', '.join(available)}", err=True)
         sys.exit(1)
     
     try:
         response = query_model(model_name, [{"role": "user", "content": prompt}])
         click.echo(response)
+    except ValueError as e:
+        click.echo(f"Configuration error: {e}", err=True)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        click.echo("\nInterrupted", err=True)
+        sys.exit(130)
     except Exception as e:
-        click.echo(f"Error: {e}", err=True)
+        # Get exception type for better error messages
+        exc_type = type(e).__name__
+        click.echo(f"{exc_type}: {e}", err=True)
+        if verbose:
+            traceback.print_exc()
         sys.exit(1)
 
 

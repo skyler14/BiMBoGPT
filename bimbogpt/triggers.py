@@ -35,6 +35,16 @@ class TriggerMatch:
     original_phrase: str
     start: int
     end: int
+    
+    VALID_MODES = frozenset({"word", "sentence", "paragraph"})
+    
+    def __post_init__(self):
+        if self.count < 1:
+            raise ValueError(f"count must be >= 1, got {self.count}")
+        if self.mode not in self.VALID_MODES:
+            raise ValueError(f"mode must be one of {self.VALID_MODES}, got '{self.mode}'")
+        if self.start > self.end:
+            raise ValueError(f"start ({self.start}) cannot be greater than end ({self.end})")
 
 
 class TriggerDetector:

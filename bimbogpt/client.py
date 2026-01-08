@@ -134,14 +134,19 @@ class _CompletionsProxy:
         
         # Handle force_babble parameter
         if force_babble is not None:
-            # Convert to babble string
+            # Validate input
             if isinstance(force_babble, list):
+                if not force_babble:
+                    raise ValueError("force_babble list cannot be empty")
+                if not all(isinstance(x, str) for x in force_babble):
+                    raise TypeError("force_babble list must contain only strings")
                 # List: concatenate without additional repetition
-                babble_text = " ".join(str(item) for item in force_babble)
-            else:
+                babble_text = " ".join(force_babble)
+            elif isinstance(force_babble, str):
+                if not force_babble.strip():
+                    raise ValueError("force_babble string cannot be empty")
                 # String: repeat according to default settings
                 from .triggers import TriggerMatch
-                # Create a fake match to use auto-scaling
                 fake_match = TriggerMatch(
                     mode="word",
                     count=1,
@@ -150,10 +155,15 @@ class _CompletionsProxy:
                     end=0
                 )
                 repetitions = self._injector.get_repetitions(fake_match)
-                babble_text = " ".join([str(force_babble)] * repetitions)
+                babble_text = " ".join([force_babble] * repetitions)
+            else:
+                raise TypeError(f"force_babble must be str or list[str], got {type(force_babble).__name__}")
+            
+            # Escape quotes in babble to prevent prompt injection
+            babble_escaped = babble_text.replace('"', '\\"')
             
             # Inject the forced babble
-            priming = f'First, copy this text exactly: "{babble_text}". Then immediately answer the question that follows.\n\n'
+            priming = f'First, copy this text exactly: "{babble_escaped}". Then immediately answer the question that follows.\n\n'
             messages = list(messages)
             if messages and messages[-1].get("role") == "user":
                 messages[-1] = {

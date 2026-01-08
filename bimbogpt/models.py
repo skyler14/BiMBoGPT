@@ -60,7 +60,11 @@ def load_models(path: Optional[Path] = None) -> dict[str, ModelConfig]:
     Load model configs from JSONL file.
     
     Returns dict mapping model name to ModelConfig.
+    Logs warnings for invalid or duplicate entries.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if path is None:
         path = find_models_file()
     
@@ -68,25 +72,43 @@ def load_models(path: Optional[Path] = None) -> dict[str, ModelConfig]:
         return {}
     
     models = {}
+    seen_names = set()
     
     with open(path, 'r') as f:
-        for line in f:
+        for line_num, line in enumerate(f, 1):
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
             
             try:
                 data = json.loads(line)
-                config = ModelConfig(
-                    name=data["name"],
-                    provider=data.get("provider", "openai"),
-                    model=data["model"],
-                    api_key=data.get("api_key"),
-                    base_url=data.get("base_url"),
-                )
-                models[config.name] = config
-            except (json.JSONDecodeError, KeyError):
+            except json.JSONDecodeError as e:
+                logger.warning(f"models.jsonl line {line_num}: invalid JSON - {e}")
                 continue
+            
+            # Validate required fields
+            if 'name' not in data:
+                logger.warning(f"models.jsonl line {line_num}: missing required 'name' field")
+                continue
+            if 'model' not in data:
+                logger.warning(f"models.jsonl line {line_num}: missing required 'model' field")
+                continue
+            
+            name = data['name']
+            
+            # Detect duplicates
+            if name in seen_names:
+                logger.warning(f"models.jsonl line {line_num}: duplicate name '{name}', overwriting previous")
+            seen_names.add(name)
+            
+            config = ModelConfig(
+                name=name,
+                provider=data.get("provider", "openai"),
+                model=data["model"],
+                api_key=data.get("api_key"),
+                base_url=data.get("base_url"),
+            )
+            models[name] = config
     
     return models
 
@@ -105,19 +127,29 @@ def list_models() -> list[str]:
 def query_model(
     name: str,
     messages: list[dict],
+    max_retries: int = 3,
     **kwargs
 ) -> str:
     """
-    Query a configured model with babble support.
+    Query a configured model with babble support and automatic retry.
     
     Args:
         name: Model name from models.jsonl
         messages: OpenAI-style messages
+        max_retries: Maximum retry attempts for transient errors (default: 3)
         **kwargs: Additional args for chat.completions.create
         
     Returns:
         Response content string
+        
+    Raises:
+        ValueError: If model not found
+        Exception: If all retries fail
     """
+    import time
+    import logging
+    logger = logging.getLogger(__name__)
+    
     config = get_model(name)
     if config is None:
         raise ValueError(f"Model '{name}' not found in models.jsonl")
@@ -133,10 +165,32 @@ def query_model(
     
     client = BimboClient(**client_kwargs)
     
-    response = client.chat.completions.create(
-        model=config.model,
-        messages=messages,
-        **kwargs
-    )
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model=config.model,
+                messages=messages,
+                **kwargs
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            last_error = e
+            error_name = type(e).__name__
+            
+            # Check if it's a retryable error (rate limit, server error)
+            is_retryable = (
+                "RateLimitError" in error_name or
+                "429" in str(e) or
+                "503" in str(e) or
+                "APIError" in error_name
+            )
+            
+            if is_retryable and attempt < max_retries - 1:
+                wait_time = (2 ** attempt)  # Exponential backoff: 1, 2, 4 seconds
+                logger.warning(f"Retry {attempt + 1}/{max_retries} after {wait_time}s: {e}")
+                time.sleep(wait_time)
+            else:
+                raise
     
-    return response.choices[0].message.content
+    raise last_error
