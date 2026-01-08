@@ -8,7 +8,7 @@ DESIGN: Minimal interception, maximum forward compatibility.
 - Uses __getattr__ for full compatibility with future SDK changes
 """
 
-from typing import Optional, Any
+from typing import Optional, Any, Union
 from openai import OpenAI
 
 from .injector import BabbleInjector
@@ -118,16 +118,53 @@ class _CompletionsProxy:
         self._verbose = verbose
         self._enabled = enabled
     
-    def create(self, *, messages: list[dict], stream: bool = False, **kwargs) -> Any:
+    def create(self, *, messages: list[dict], stream: bool = False, force_babble: Optional[Union[str, list]] = None, **kwargs) -> Any:
         """
         Intercept create() for babble injection.
         
-        Pre: inject babble if triggered
+        Pre: inject babble if triggered or forced
         Post: strip babble from response
+        
+        Args:
+            force_babble: Force babble injection with custom phrase
+                - str: will be repeated according to injector settings
+                - list: will be concatenated as-is (e.g., ["blah"]*100 or ["Count to 100"])
         """
         match = None
         
-        if self._enabled:
+        # Handle force_babble parameter
+        if force_babble is not None:
+            # Convert to babble string
+            if isinstance(force_babble, list):
+                # List: concatenate without additional repetition
+                babble_text = " ".join(str(item) for item in force_babble)
+            else:
+                # String: repeat according to default settings
+                from .triggers import TriggerMatch
+                # Create a fake match to use auto-scaling
+                fake_match = TriggerMatch(
+                    mode="word",
+                    count=1,
+                    original_phrase="[forced]",
+                    start=0,
+                    end=0
+                )
+                repetitions = self._injector.get_repetitions(fake_match)
+                babble_text = " ".join([str(force_babble)] * repetitions)
+            
+            # Inject the forced babble
+            priming = f'First, copy this text exactly: "{babble_text}". Then immediately answer the question that follows.\n\n'
+            messages = list(messages)
+            if messages and messages[-1].get("role") == "user":
+                messages[-1] = {
+                    **messages[-1],
+                    "content": priming + messages[-1].get("content", "")
+                }
+            match = True  # Mark as having babble for stripping
+            if self._verbose:
+                print(f"[BiMBoGPT] Forced babble: {len(babble_text.split())} words")
+        
+        elif self._enabled:
             messages, match = self._injector.inject(list(messages))
             if match and self._verbose:
                 print(f"[BiMBoGPT] Trigger: '{match.original_phrase}'")
