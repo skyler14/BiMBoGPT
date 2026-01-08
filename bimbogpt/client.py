@@ -8,11 +8,14 @@ DESIGN: Minimal interception, maximum forward compatibility.
 - Uses __getattr__ for full compatibility with future SDK changes
 """
 
+import logging
 from typing import Optional, Any, Union
 from openai import OpenAI
 
 from .injector import BabbleInjector
 from .stripper import strip_babble
+
+log: logging.Logger = logging.getLogger(__name__)
 
 
 class BimboClient(OpenAI):
@@ -68,7 +71,7 @@ class BimboClient(OpenAI):
         
         modified_messages, match = self._injector.inject(messages)
         if match and self._verbose:
-            print(f"[BiMBoGPT] Trigger: '{match.original_phrase}'")
+            log.debug(f"Trigger: '{match.original_phrase}'")
         
         response = fifo.delegate_to_agent(modified_messages, model=model, timeout=timeout)
         
@@ -172,12 +175,12 @@ class _CompletionsProxy:
                 }
             match = True  # Mark as having babble for stripping
             if self._verbose:
-                print(f"[BiMBoGPT] Forced babble: {len(babble_text.split())} words")
+                log.debug(f"Forced babble: {len(babble_text.split())} words")
         
         elif self._enabled:
             messages, match = self._injector.inject(list(messages))
             if match and self._verbose:
-                print(f"[BiMBoGPT] Trigger: '{match.original_phrase}'")
+                log.debug(f"Trigger: '{match.original_phrase}'")
         
         # Call original - pass through ALL kwargs unchanged
         response = self._original.create(messages=messages, stream=stream, **kwargs)
