@@ -5,7 +5,7 @@
 > "My thoughts will NOT put me in shackles any longer 💖"  
 > — 2022 Tiktok Bimbo Manifesto 
 
-Chain-of-thought helps complex reasoning but *hurts* concise tasks. When you ask for "one word", models that explain themselves first actually perform worse. BiMBoGPT bypasses this by making models copy filler text first—filling the "reasoning" quota with babble so they can answer directly. 
+Chain-of-thought helps complex reasoning but *hurts* concise tasks. When you ask for "one word", models that explain themselves first sometimes actually perform worse. BiMBoGPT bypasses this by making models copy filler text first—filling the "reasoning" quota with babble so they can answer directly. 
 
 ## Install
 
